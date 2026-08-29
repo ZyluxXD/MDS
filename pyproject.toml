@@ -1,0 +1,11 @@
+[project]
+name = "mds"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = [
+    "beautifulsoup4>=4.15.0",
+    "python-dotenv>=1.2.3",
+    "requests>=2.34.2",
+    "slack-bolt>=1.27.0",
+    "slack-sdk>=3.43.0",
+]

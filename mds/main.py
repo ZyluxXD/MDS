@@ -5,8 +5,9 @@ from slack_sdk.errors import SlackApiError
 import time
 from datetime import datetime, timedelta, timezone
 from threading import Thread
-from mds.slack import post_memes, app
+from .slack import post_memes, app
 from .config import SLACK_APP_TOKEN
+from .llm import get_llm_config
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,7 @@ def run_scheduler() -> None:
 
 def manual_post() -> None:
     """manual test post on demand using the command line"""
+    logger.info("Press Enter to trigger a manual post")
     while True:
         input("")
         logger.info("Manual post requested, posting after 5 seconds (press Enter again to cancel)")
@@ -48,7 +50,7 @@ def manual_post() -> None:
         input_thread.start()
         input_thread.join(timeout=5)
         if input_thread.is_alive():
-            logger.info("Starting manual meme post")
+            logger.info("Starting manual meme post...")
             try:
                 post_memes()
             except Exception as err:
@@ -58,15 +60,36 @@ def manual_post() -> None:
 
 
 if __name__ == "__main__":
+    print("Starting the Meme Delivery Service server...")
+    # configure the logging settings
     configure_logging()
+    # validate llm config
+    llm_config = get_llm_config()
+    if llm_config is None:
+        logger.info("LLM moderation is disabled")
+    else:
+        logger.info(
+            "LLM moderation is enabled (provider=%s, model=%s, max_tokens=%d)",
+            llm_config.provider,
+            llm_config.model,
+            llm_config.max_tokens,
+        )
+    # configure the Slack Socket Mode handler
+    handler = SocketModeHandler(app, SLACK_APP_TOKEN)
+
+    # start the scheduler and manual post threads
     try:
         Thread(target=manual_post, daemon=True).start()
         Thread(target=run_scheduler, daemon=True).start()
-        logger.info("Starting Slack Socket Mode listener")
-        SocketModeHandler(
-            app,
-            SLACK_APP_TOKEN,
-        ).start()
+        logger.info("Starting Slack Socket Mode listener...")
+        handler.start()
+    except KeyboardInterrupt:
+        # exiting on SIGINT
+        logger.info("Shutdown requested, exiting...")
     except SlackApiError as error:
+        # error from slack
         logger.exception("Slack API error: %s", error.response.get("error"))
         raise
+    finally:
+        # cleanup
+        handler.close()

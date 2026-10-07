@@ -1,2 +1,1 @@
-# hello !
-all = ["mds"]
+# hello :D

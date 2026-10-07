@@ -2,12 +2,15 @@
 name = "mds"
 version = "0.1.0"
 requires-python = ">=3.14"
+license = "AGPL-3.0-only"
+license-files = ["LICENSE"]
 dependencies = [
     "beautifulsoup4>=4.15.0",
     "langchain>=1.1",
     "langchain-anthropic>=1.0",
     "langchain-google-genai>=4.0",
     "langchain-openai>=1.0",
+    "pydantic>=2.0",
     "python-dotenv>=1.2.3",
     "requests>=2.34.2",
     "slack-bolt>=1.27.0",

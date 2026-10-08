@@ -110,6 +110,11 @@ needs a topic, and you can put a topic with multiple words in quotes.
 The memes are posted in the channel where you ran the command. The fetching status and any cooldown messages are
 only visible to you.
 
+If MDS isn't in the channel, it replies privately asking you to add it using `/invite @MDS` and run `/memes` again.
+This reply uses the slash command's response URL and needs no additional scopes. MDS detects missing access when
+Slack rejects the upload, after fetching, moderation, and downloading. Blocked requests do not consume the channel
+or user cooldown.
+
 By default, a channel can request a batch once every **5 minutes**, and a user can request one once every **minute**
 across all channels. You can change these limits in `.env`, or set either one to `0` to turn it off.
 The cooldowns reset when the bot restarts.

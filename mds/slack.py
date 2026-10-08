@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from slack_bolt import App
+from slack_sdk.errors import SlackApiError
 
 from .config import Settings
 from .fetch import download_memes, fetch_meme_candidates, source_extension
@@ -25,6 +26,14 @@ logger = logging.getLogger(__name__)
 MAX_COMMAND_MEMES = 10
 DEFAULT_COMMAND_MEMES = 10
 COMMAND_USAGE = "Usage: /memes [count 1-10] [home|hot|random|search <topic>]"
+CHANNEL_INVITE_MESSAGE = (
+    "I'm not in this channel yet (╯°□°）╯︵ ┻━┻! Add MDS using `/invite @MDS`, "
+    "then run `/memes` again."
+)
+COMMAND_FAILURE_MESSAGE = (
+    "Something happened and the memes could not be posted. "
+    "How unfortunate. (╯°□°）╯︵ ┻━┻"
+)
 DAILY_COMMENTS = (
     "*Daily memes for you! Yes YOU!*",
     "*Memes, memes, with a side of memes.*",
@@ -112,6 +121,15 @@ def _format_wait(seconds: float) -> str:
     return f"{count} {unit}"
 
 
+@dataclass(frozen=True, slots=True)
+class CooldownReservation:
+    """Identify a request so cancellation is not able to clear a newer cooldown."""
+
+    channel: str
+    user: str | None
+    requested_at: float
+
+
 class CooldownLimiter:
     """Reserve slash-command slots independently per channel and user."""
 
@@ -129,14 +147,14 @@ class CooldownLimiter:
         self.channel_cooldown_exempt_ids = frozenset(channel_cooldown_exempt_ids)
         self._clock = clock
         self._lock = threading.Lock()
-        self._channel_times: dict[str, float] = {}
-        self._user_times: dict[str, float] = {}
+        self._channel_times: dict[str, CooldownReservation] = {}
+        self._user_times: dict[str, CooldownReservation] = {}
         self._next_cleanup = 0.0
 
-    def reserve(self, channel: str, user: str | None) -> str | None:
+    def reserve(self, channel: str, user: str | None) -> CooldownReservation | str:
         """Reserve a request, or return the same user-facing cooldown message."""
         channel_cooldown_enabled = (
-            self.channel_cooldown_seconds > 0 and channel not in self.channel_cooldown_exempt_ids
+                self.channel_cooldown_seconds > 0 and channel not in self.channel_cooldown_exempt_ids
         )
         now = self._clock()
         with self._lock:
@@ -148,7 +166,7 @@ class CooldownLimiter:
             # check the channel cooldown unless this channel is exempt
             channel_requested_at = self._channel_times.get(channel) if channel_cooldown_enabled else None
             channel_remaining = (
-                self.channel_cooldown_seconds - (now - channel_requested_at)
+                self.channel_cooldown_seconds - (now - channel_requested_at.requested_at)
                 if channel_requested_at is not None
                 else 0.0
             )
@@ -161,7 +179,7 @@ class CooldownLimiter:
             # check if the user is still on cooldown in any channel
             user_requested_at = self._user_times.get(user) if user else None
             user_remaining = (
-                self.user_cooldown_seconds - (now - user_requested_at)
+                self.user_cooldown_seconds - (now - user_requested_at.requested_at)
                 if user_requested_at is not None
                 else 0.0
             )
@@ -172,11 +190,20 @@ class CooldownLimiter:
                 )
 
             # save the accepted request time for the channel and user
+            reservation = CooldownReservation(channel, user, now)
             if channel_cooldown_enabled:
-                self._channel_times[channel] = now
+                self._channel_times[channel] = reservation
             if user and self.user_cooldown_seconds > 0:
-                self._user_times[user] = now
-        return None
+                self._user_times[user] = reservation
+        return reservation
+
+    def release(self, reservation: CooldownReservation) -> None:
+        """Release only cooldowns still belonging to a blocked request."""
+        with self._lock:
+            if self._channel_times.get(reservation.channel) is reservation:
+                del self._channel_times[reservation.channel]
+            if reservation.user and self._user_times.get(reservation.user) is reservation:
+                del self._user_times[reservation.user]
 
     def _prune(self, now: float) -> None:
         """Remove expired channel and user request times"""
@@ -186,7 +213,7 @@ class CooldownLimiter:
             self._channel_times = {
                 key: value
                 for key, value in self._channel_times.items()
-                if value > channel_cutoff
+                if value.requested_at > channel_cutoff
             }
         else:
             self._channel_times.clear()
@@ -194,7 +221,7 @@ class CooldownLimiter:
             self._user_times = {
                 key: value
                 for key, value in self._user_times.items()
-                if value > user_cutoff
+                if value.requested_at > user_cutoff
             }
         else:
             self._user_times.clear()
@@ -517,7 +544,7 @@ def create_slack_app(
     )
 
     @slack_app.command("/memes")
-    def meme_command(ack, command) -> None:
+    def meme_command(ack, command, respond) -> None:
         """Handle the /memes command"""
         # parse the command arguments and return any validation errors
         try:
@@ -530,9 +557,9 @@ def create_slack_app(
         channel = command["channel_id"]
         user = command.get("user_id")
         # check the channel and user cooldowns
-        rate_limit_message = limiter.reserve(channel, user)
-        if rate_limit_message:
-            ack(text=rate_limit_message, response_type="ephemeral")
+        reservation = limiter.reserve(channel, user)
+        if isinstance(reservation, str):
+            ack(text=reservation, response_type="ephemeral")
             return
 
         source_description = source
@@ -546,32 +573,53 @@ def create_slack_app(
             ),
             response_type="ephemeral",
         )
+
+        def reply(text: str) -> None:
+            """Reply even when the bot cannot post directly to this channel"""
+            try:
+                response = respond(text=text, response_type="ephemeral")
+                if response.status_code != 200:
+                    logger.error(
+                        "Could not send /memes response in channel %s (HTTP %s)",
+                        channel,
+                        response.status_code,
+                    )
+            except Exception as error:
+                # Response URLs are credentials; keep them out of error logs.
+                logger.error(
+                    "Could not send /memes response in channel %s (%s)",
+                    channel,
+                    type(error).__name__,
+                )
+
         try:
             # post the requested memes
             posted_count = poster.post_command(channel, count, extension, user)
         except Exception as error:
-            logger.exception(
-                "Meme slash command failed in channel %s: %s",
-                channel,
-                error,
-            )
-            # notify the user if the memes could not be posted
-            if user:
-                slack_app.client.chat_postEphemeral(
-                    channel=channel,
-                    user=user,
-                    text="Something happened and the memes could not be posted. How unfortunate. (╯°□°）╯︵ ┻━┻",
+            if isinstance(error, SlackApiError) and error.response.get("error") in {
+                "not_in_channel", "channel_not_found",
+            }:
+                # let the user invite MDS and retry without waiting for a cooldown
+                limiter.release(reservation)
+                logger.warning(
+                    "Meme request blocked by channel access in %s: %s",
+                    channel,
+                    error.response.get("error"),
                 )
+                reply(CHANNEL_INVITE_MESSAGE)
+            else:
+                logger.exception(
+                    "Meme slash command failed in channel %s: %s",
+                    channel,
+                    error,
+                )
+                reply(COMMAND_FAILURE_MESSAGE)
             return
         # notify the user if no memes were available to post
-        if not posted_count and user:
-            slack_app.client.chat_postEphemeral(
-                channel=channel,
-                user=user,
-                text=(
-                    "No memes were available to post for that source. "
-                    "How unfortunate. (╯°□°）╯︵ ┻━┻"
-                ),
+        if not posted_count:
+            reply(
+                "No memes were available to post for that source. "
+                "How unfortunate. (╯°□°）╯︵ ┻━┻"
             )
 
     @slack_app.action("show_sources")

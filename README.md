@@ -13,7 +13,7 @@ use an LLM to moderate them.
   <img src="assets/demo.png" alt="MDS posting a programming meme in Slack with a Show sources button" width="300">
 </a>
 
-Firstly, use the [installation guide](#Install) to get an MDS instance up and running!
+Firstly, use the [installation guide](#install) to get an MDS instance up and running!
 
 In a channel where MDS is running and added, request a small batch:
 
@@ -65,10 +65,17 @@ You do need to keep the bot running to receive commands obviously!
 7. Optional: go to **Basic Information → Display Information** to add the MDS logo. Under **App Icon & Preview**,
    click **Add App Icon** (or **Replace**), and upload [logo.png](assets/logo.png).
 
-### Run from source
+### Download and run
 
-Download or clone this repository, then copy [`.env.example`](.env.example) to `.env` and fill in the three Slack
-settings above. Run these commands from the repository folder:
+Open the [latest release](https://github.com/ZyluxXD/MDS/releases/latest), download **Source code (zip)**, and extract
+it.
+In the extracted folder, copy `.env.example` to `.env`:
+
+```bash
+cp .env.example .env
+```
+
+Fill in the three Slack settings described above in `.env`, then run these commands from the repository folder:
 
 ```bash
 uv sync --locked
@@ -215,7 +222,16 @@ ___
 
 ## Local Development
 
-Install the dependencies with `uv sync --locked`. Run the bot from the repository folder with
+For development, clone `main`:
+
+```bash
+git clone --branch main https://github.com/ZyluxXD/MDS.git
+cd MDS
+```
+
+Copy `.env.example` to `.env` and configure it as described above, then install the dependencies with
+`uv sync --locked`.
+Run the bot from the repository folder with
 `uv run --locked python -m mds.main`, or use `python -m mds.main` if your environment already has the dependencies
 installed.
 

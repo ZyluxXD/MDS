@@ -9,10 +9,9 @@ import threading
 import time
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass
-from typing import Any
-
 from slack_bolt import App
 from slack_sdk.errors import SlackApiError
+from typing import Any
 
 from .config import Settings
 from .fetch import download_memes, fetch_meme_candidates, source_extension
@@ -40,35 +39,37 @@ DAILY_COMMENTS = (
     "*Fresh memes for the day!*",
     "*Meme(s) of the day below:*",
     "*Waiter, waiter, more memes please!*",
-    "*Your daily serving of the internet has arrived*",
-    "*A fresh batch of memes just landed*",
+    "*Your daily serving of the internet has arrived.*",
     "*These memes are better than doomscrolling, for sure.*",
     "*Today's forecast: Cloudy with a 100% chance of memes.*",
     "*Your regularly scheduled meme programming:*",
-    "*Memes, memes, memes, with a side of memes.*",
     "*Like takeout, but for memes.*",
-    "*Fresh batch of memes, hot off the internet.*",
     "*Kind of like a service that delivers memes... hmm... (say that again)*",
     "*But like who doesn't like memes?*",
     "*[insert comment about memes here]*",
     "*Go code some project after you enjoy these memes!*",
     "*And now, for a segue — to ~our sponsor~ these memes!* _(iykyk)_",
     "*You know what they say, a meme a day keeps the boredom away!*",
-    "*Addicted to memes? Here are some for you!*",
+    "*Breaking news: the memes are here. More at 11.*",
+    "*Works on my machine. The memes, I mean. Here they are:*",
+    "*Eat, sleep, meme.*",
+    "*Here are some memes to check out while you are procrastinating. For the fifth time.*",
 )
 COMMAND_COMMENTS = (
     "*Here are the memes <@%s> asked for:*",
-    "*A custom batch of memes for <@%s>, coming right up!*",
+    "*<@%s> summoned the memes. Behold.*",
     "*<@%s>'s requested meme delivery has arrived! _heh_*",
-    "*Freshly fetched for <@%s> and this channel!*",
-    "*Enjoy these memes, <@%s>!*",
+    "*Special delivery for <@%s> (and everyone else in this channel):*",
+    "*Your scheduled programming has been interrupted by <@%s> and memes.*",
     "*<@%s> really likes memes, so much that they requested some for this channel!*",
-    "*<@%s>, the meme connoisseur, requested these memes for you!*",
-    "*Give <@%s> a round of applause for requesting these memes!*",
     "*[insert comment about memes here]* _(requested by <@%s>)_",
-    "*<@%s> was the memeposter... get it? Like Among Us?..._",
+    "*<@%s> was the memeposter... get it? Like Among Us?...",
     "*And now, for a segue to our sponsor: <@%s>*",
     "*<@%s>'s meme delivery:*",
+    "*<@%s> is responsible for these memes.*",
+    "*<@%s> woke up and chose memes.*",
+    "*<@%s> just deployed memes to prod. On a FRIDAY.*",
+    "*Fetching memes for <@%s>... 200 OK.*",
 )
 
 

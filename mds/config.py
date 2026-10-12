@@ -3,7 +3,6 @@ from __future__ import annotations
 import math
 import os
 from dataclasses import dataclass, field
-
 from dotenv import load_dotenv
 
 
@@ -166,7 +165,7 @@ class Settings:
     llm_api_key_env: str | None = None
     llm_max_tokens: int = 4096
     llm_timeout_seconds: float = 60.0
-    llm_moderation_strictness: str = "high"
+    llm_moderation_strictness: str = "balanced"
 
     daily_post_enabled: bool = True
     daily_post_time: tuple[int, int] = (0, 0)
@@ -222,7 +221,7 @@ class Settings:
                 name="LLM_TIMEOUT_SECONDS",
             ),
             llm_moderation_strictness=(
-                    os.getenv("LLM_MODERATION_STRICTNESS", "high").strip().lower() or "high"
+                    os.getenv("LLM_MODERATION_STRICTNESS", "balanced").strip().lower() or "balanced"
             ),
             daily_post_enabled=parse_bool(
                 os.getenv("DAILY_POST_ENABLED"),

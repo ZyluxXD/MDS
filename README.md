@@ -167,19 +167,19 @@ Keep in mind that moderation uses API tokens, and may cost you money depending o
 selected model needs to accept image input and structured
 output, and the provider needs to be able to access the supplied images.
 
-| Setting                                | Default | Description                                                                                |
-|----------------------------------------|---------|--------------------------------------------------------------------------------------------|
-| `LLM_ENABLED`                          | `false` | Turns on LLM moderation.                                                                   |
-| `LLM_MODEL`                            | Unset   | Model name. Required when moderation is enabled.                                           |
-| `LLM_PROVIDER`                         | Unset   | `openai`, `anthropic`, or `gemini`. Required when moderation is enabled.                   |
-| `LLM_ENDPOINT`                         | Unset   | Optional custom API base URL for OpenAI or Anthropic. Leave unset for Gemini.              |
-| `LLM_API_KEY`                          | Unset   | API key entered directly. Takes priority over `LLM_API_KEY_ENV`.                           |
-| `LLM_API_KEY_ENV`                      | Unset   | Name of an environment variable containing the API key, if you aren't using `LLM_API_KEY`. |
-| `LLM_MAX_TOKENS`                       | `4096`  | Maximum output tokens per moderation request. Must be a positive integer.                  |
-| `LLM_TIMEOUT_SECONDS`                  | `60`    | Request timeout passed to the provider, in seconds. Must be a positive number.             |
-| `LLM_MODERATION_STRICTNESS`            | `high`  | Moderation prompt: `lenient`, `balanced`, `high`, or `strict`.                             |
-| `LLM_MEMES_COMMAND_MODERATION_ENABLED` | `true`  | Set to `false` to skip moderation for `/memes`.                                            |
-| `LLM_DAILY_POST_MODERATION_ENABLED`    | `true`  | Set to `false` to skip moderation for scheduled daily posts.                               |
+| Setting                                | Default    | Description                                                                                |
+|----------------------------------------|------------|--------------------------------------------------------------------------------------------|
+| `LLM_ENABLED`                          | `false`    | Turns on LLM moderation.                                                                   |
+| `LLM_MODEL`                            | Unset      | Model name. Required when moderation is enabled.                                           |
+| `LLM_PROVIDER`                         | Unset      | `openai`, `anthropic`, or `gemini`. Required when moderation is enabled.                   |
+| `LLM_ENDPOINT`                         | Unset      | Optional custom API base URL for OpenAI or Anthropic. Leave unset for Gemini.              |
+| `LLM_API_KEY`                          | Unset      | API key entered directly. Takes priority over `LLM_API_KEY_ENV`.                           |
+| `LLM_API_KEY_ENV`                      | Unset      | Name of an environment variable containing the API key, if you aren't using `LLM_API_KEY`. |
+| `LLM_MAX_TOKENS`                       | `4096`     | Maximum output tokens per moderation request. Must be a positive integer.                  |
+| `LLM_TIMEOUT_SECONDS`                  | `60`       | Request timeout passed to the provider, in seconds. Must be a positive number.             |
+| `LLM_MODERATION_STRICTNESS`            | `balanced` | `lenient`, `balanced`, `high`, or `strict`.                                                |
+| `LLM_MEMES_COMMAND_MODERATION_ENABLED` | `true`     | Set to `false` to skip moderation for `/memes`.                                            |
+| `LLM_DAILY_POST_MODERATION_ENABLED`    | `true`     | Set to `false` to skip moderation for scheduled daily posts.                               |
 
 When enabling moderation, provide either `LLM_API_KEY` or `LLM_API_KEY_ENV`. If you use the latter, the variable it
 names must actually contain a key.

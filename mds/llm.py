@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
-
 from langchain.chat_models import init_chat_model
+from typing import Any
 
 from .config import Settings
 
@@ -25,7 +24,7 @@ class LLMConfig:
     api_key_env: str | None = None
     max_tokens: int = 4096
     timeout_seconds: float = 60.0
-    strictness: str = "high"
+    strictness: str = "balanced"
 
 
 def _required(value: str | None, name: str) -> str:
@@ -70,7 +69,7 @@ def get_llm_config(settings: Settings) -> LLMConfig | None:
         )
 
     # validate strictness, max tokens, and timeout settings
-    strictness = (settings.llm_moderation_strictness or "high").strip().lower()
+    strictness = (settings.llm_moderation_strictness or "balanced").strip().lower()
     if strictness not in STRICTNESS_SETTINGS:
         raise ConfigurationError(
             "Invalid LLM_MODERATION_STRICTNESS; expected from the following: "

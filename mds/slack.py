@@ -14,7 +14,13 @@ from slack_sdk.errors import SlackApiError
 from typing import Any
 
 from .config import Settings
-from .fetch import download_memes, fetch_meme_candidates, source_extension
+from .fetch import (
+    MEME_SOURCE_FALLBACKS,
+    download_memes,
+    feed_name,
+    fetch_meme_candidates,
+    source_extension,
+)
 from .llm import LLMConfig
 from .models import DownloadedMeme, Meme
 from .moderate import moderate_memes
@@ -71,6 +77,8 @@ COMMAND_COMMENTS = (
     "*<@%s> just deployed memes to prod. On a FRIDAY.*",
     "*Fetching memes for <@%s>... 200 OK.*",
 )
+# the text note shown when an empty feed fell back to another feed
+FALLBACK_NOTE = "The {feed} feed had no memes, so these fell back to the {fallback} feed."
 
 
 @dataclass(frozen=True, slots=True)
@@ -412,24 +420,48 @@ class SlackPost:
             button_value["origin_message_ts"] = upload_reference.message_ts
         if upload_reference.file_id is not None:
             button_value["origin_file_id"] = upload_reference.file_id
+        blocks: list[dict[str, Any]] = []
+        # add a small text note for each empty feed that fell back to another feed
+        fallback_feeds = dict.fromkeys(
+            meme.meme.fallback_from for meme in downloaded if meme.meme.fallback_from
+        )
+        if fallback_feeds:
+            blocks.append(
+                {
+                    "type": "context",
+                    "elements": [
+                        {
+                            "type": "mrkdwn",
+                            "text": " ".join(
+                                FALLBACK_NOTE.format(
+                                    feed=feed_name(feed),
+                                    fallback=feed_name(MEME_SOURCE_FALLBACKS[feed]),
+                                )
+                                for feed in fallback_feeds
+                            ),
+                        }
+                    ],
+                }
+            )
+        blocks.append(
+            {
+                "type": "actions",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Show sources"},
+                        "action_id": "show_sources",
+                        "value": json.dumps(button_value, separators=(",", ":")),
+                    }
+                ],
+            }
+        )
         # post the source button and log any errors
         try:
             self.client.chat_postMessage(
                 channel=channel,
                 text="Meme sources",
-                blocks=[
-                    {
-                        "type": "actions",
-                        "elements": [
-                            {
-                                "type": "button",
-                                "text": {"type": "plain_text", "text": "Show sources"},
-                                "action_id": "show_sources",
-                                "value": json.dumps(button_value, separators=(",", ":")),
-                            }
-                        ],
-                    }
-                ],
+                blocks=blocks,
                 unfurl_links=False,
                 unfurl_media=False,
             )

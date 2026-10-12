@@ -12,6 +12,9 @@ class Meme:
     image_url: str
     source_url: str
     views: float
+    # the route of the empty feed this meme was fetched in place of, if any
+    # this is for the fallback system
+    fallback_from: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import logging
 import re
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Sequence
-from urllib.parse import urlencode, urljoin
-
 import requests
 from bs4 import BeautifulSoup
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import replace
 from requests.adapters import HTTPAdapter
+from typing import Sequence
+from urllib.parse import urlencode, urljoin
 from urllib3.util.retry import Retry
 
 from .models import DownloadedMeme, Meme
@@ -20,6 +20,12 @@ MEME_SOURCE_EXTENSIONS = {
     "home": "/",
     "hot": "/hot",
     "random": "/random",
+}
+# the feed(s) for fallbacks when certain feeds don't have any content
+# the /hot feed only renders its 24-hour window, which is empty when nothing was posted in the last day
+# not exactly sure why it was that empty, it usually never is, but better to avoid errors
+MEME_SOURCE_FALLBACKS = {
+    "/hot": "/",
 }
 # the CSS selectors for meme cards
 MEME_CARD_SELECTORS = (
@@ -82,6 +88,15 @@ def source_extension(source: str, query: str | None = None) -> str:
     # if the source is unknown, raise a ValueError with the list of supported sources
     supported_sources = ", ".join((*MEME_SOURCE_EXTENSIONS, "search"))
     raise ValueError(f"Unknown meme source {source!r}; choose one of: {supported_sources}")
+
+
+def feed_name(extension: str) -> str:
+    """Transform a ProgrammerHumor site route into its source name"""
+    # return the matching source name, otherwise return the route itself
+    for name, source in MEME_SOURCE_EXTENSIONS.items():
+        if source == extension:
+            return name
+    return extension
 
 
 def view_count(views: str) -> float:
@@ -195,6 +210,17 @@ def fetch_meme_candidates(
         get_memes(limit=fetch_limit, memes_extension=extension)
         for extension in meme_extensions
     ]
+    # replace empty feeds with their fallback feed unless the fallback was already fetched
+    for index, (extension, feed) in enumerate(zip(meme_extensions, fetched)):
+        fallback = MEME_SOURCE_FALLBACKS.get(extension)
+        if feed or not fallback or fallback in meme_extensions:
+            continue
+        logger.warning("The %s feed was empty; falling back to the %s feed", extension, fallback)
+        # mark the fallback memes so the post can note that the feed fell back
+        fetched[index] = [
+            replace(meme, fallback_from=extension)
+            for meme in get_memes(limit=fetch_limit, memes_extension=fallback)
+        ]
     # interleave the feeds and deduplicate by source URL
     # the reason the interleaving is done is because since the /home and /hot feeds are mixed & sorted by view count
     # you will always see memes from /hot feed, so you will never see memes from /home feed
